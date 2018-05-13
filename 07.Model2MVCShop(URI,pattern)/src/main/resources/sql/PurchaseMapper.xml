@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="PurchaseMapper">
+	<resultMap id="purchaseSelectMap" type="purchase">
+		<result property="tranNo"				column="tran_no"			jdbcType="INTEGER" />
+		<result property="paymentOption"		column="payment_option"		jdbcType="CHAR" />
+		<result property="receiverName"			column="receiver_name"		jdbcType="VARCHAR" />
+		<result property="receiverPhone"		column="receiver_phone"		jdbcType="VARCHAR" />
+		<result property="divyAddr"				column="demailaddr"			jdbcType="VARCHAR" />
+		<result property="divyDate"				column="dlvy_date"			jdbcType="DATE" />
+		<result property="divyRequest"			column="dlvy_request"		jdbcType="VARCHAR" />
+		<result property="tranCode"				column="tran_status_code"	jdbcType="CHAR" />
+		<result property="orderDate"			column="order_data"			jdbcType="DATE" />
+		<result property="sEA" 				    column="sea"    			jdbcType="INTEGER"/>
+		<result property="cancelCode"			column="cancel_Code"  		jdbcType="INTEGER"/>
+		
+		<!-- <result property="buyer.userId" column="BUYER_ID" jdbcType="VARCHAR"/>
+		<result property="purchaseProd.prodNo" column="prod_no" jdbcType="VARCHAR"/> -->
+		
+		<!-- <association property="purchaseProd" javaType="product"/>
+		<association property="buyer" javaType="user"/> -->
+		
+		
+		<association property="purchaseProd" resultMap="productSelectMap"/>
+		<association property="buyer" resultMap="userSelectMap"/>
+		
+		<!-- association에 result맵을 다른 경로의 resultmap넣기 -->
+	</resultMap>
+
+	<!-- 객체를 받아올경우 객체 연결해주는 작업이 필요 여러개의 변수쓸떄는 collaction ???-->
+	<resultMap id="productSelectMap" type="product">
+		<result property="prodNo" 		column="prod_no" 			jdbcType="INTEGER"/>
+		<result property="prodName"		column="prod_name" 			jdbcType="VARCHAR" />
+		<result property="prodDetail" 	column="prod_detail" 		jdbcType="VARCHAR" />
+		<result property="manuDate" 	column="manufacture_day"	jdbcType="VARCHAR" />
+		<result property="price" 		column="price" 				jdbcType="NUMERIC" />
+		<result property="fileName" 	column="image_file" 		jdbcType="VARCHAR" />
+		<result property="regDate" 		column="reg_date" 			jdbcType="DATE" />
+	</resultMap>
+	<resultMap id="userSelectMap" type="user">
+		<result property="userId" 		column="user_id" 		jdbcType="VARCHAR"/>
+		<result property="userName"		column="user_name" 		jdbcType="VARCHAR" />
+		<result property="password" 	column="password" 		jdbcType="VARCHAR" />
+		<result property="role" 		column="role" 			jdbcType="VARCHAR" />
+		<result property="ssn" 			column="ssn" 			jdbcType="VARCHAR" />
+		<result property="phone" 		column="cell_phone" 	jdbcType="VARCHAR" />
+		<result property="addr" 		column="addr" 			jdbcType="VARCHAR" />
+		<result property="email" 		column="email" 			jdbcType="VARCHAR"  />
+		<result property="regDate" 		column="reg_date" 		jdbcType="DATE" />
+	</resultMap>
+
+	
+	<insert id="addPurchase" parameterType="purchase">
+		insert into transaction 
+		values(seq_transaction_tran_no.nextval,
+		#{purchaseProd.prodNo},
+		#{buyer.userId},
+		#{paymentOption:CHAR},
+		#{receiverName:VARCHAR},
+		#{receiverPhone:VARCHAR},
+		#{divyAddr:VARCHAR},
+		#{divyRequest:VARCHAR},
+		#{tranCode},
+		SYSDATE,
+		#{divyDate},
+		#{sEA},
+		nvl(#{cancelCode},0))		
+	</insert>
+	
+	
+	
+  <update id="updatePurchase" parameterType="purchase">
+		UPDATE transaction SET payment_option=#{paymentOption:CHAR}, receiver_name=#{receiverName:VARCHAR}, receiver_phone=#{receiverPhone:VARCHAR}
+								, demailaddr=#{divyAddr:VARCHAR}, dlvy_request=#{divyRequest:VARCHAR}, dlvy_date=#{divyDate:DATE}
+		WHERE tran_no = #{tranNo}
+	</update>
+	
+	<update id="updateTranCode" parameterType="purchase">
+		UPDATE transaction SET tran_status_code = #{tranCode}
+		WHERE
+			<if test="tranNo!=0">tran_no = #{tranNo}</if>
+			<if test="tranNo==0">prod_no = #{prodNo}</if>
+	</update>
+	
+	<select id="getPurchase" resultMap="purchaseSelectMap">
+		SELECT t.tran_no, p.prod_no, u.user_Id, t.payment_option, u.user_name, t.receiver_phone, t.demailaddr
+				, t.dlvy_request, t.tran_status_code, t.order_data, TO_CHAR(t.dlvy_date,'yyyyMMdd') dlvy_date,t.sea , t.cancel_code
+		FROM transaction t , product p ,users u
+		WHERE tran_no= #{tranNo} and t.prod_no=p.prod_no(+) and t.buyer_id=u.user_Id
+		ORDER BY tran_no DESC
+	</select>
+
+	<!-- <select  id="getPurchaseList" parameterType="map" resultMap="purchaseSelectMap">
+		
+		
+			select t.buyer_id ,t.receiver_name,t.receiver_phone,t.tran_status_code,t.tran_no,
+						  p.prod_Name,p.prod_no,p.price,p.IMAGE_FILE,t.sea, t.cancel_code
+				from transaction t,product p 
+				where BUyer_id= #{buyerId} and t.prod_no = p.prod_no(+)
+				ORDER BY tran_no DESC
+		
+	</select> -->
+	
+	<select  id="getPurchaseList" parameterType="map" resultMap="purchaseSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.* , ROWNUM AS row_seq
+			FROM ( select t.buyer_id ,t.receiver_name,t.receiver_phone,t.tran_status_code,t.tran_no,
+						  p.prod_Name,p.prod_no,p.price,p.IMAGE_FILE,t.sea, t.cancel_code
+				from transaction t,product p 
+				where BUyer_id= #{buyerId} and t.prod_no = p.prod_no(+)
+				ORDER BY tran_no DESC) inner_table
+			WHERE ROWNUM &lt;= #{search.endRowNum} )
+		WHERE row_seq BETWEEN #{search.startRowNum} AND #{search.endRowNum}
+				
+	</select>
+	
+	<select  id="getTotalCount" parameterType="map"  resultType="int">
+		SELECT COUNT(*)
+		FROM( select buyer_id ,receiver_name,receiver_phone,tran_status_code,tran_no,prod_no,sea 
+				from transaction where BUyer_id= #{buyerId}) countTable
+	</select>
+	
+	<update id="updateCancelCode" parameterType="purchase">
+		update transaction set cancel_code=#{cancelCode} where tran_no=#{tranNo}
+		
+	</update>
+	
+	<select id="cancelList" parameterType="map" resultMap="purchaseSelectMap">
+		select
+		u.user_Id,
+		p.prod_name,
+		p.price,
+		t.sea,
+		t.cancel_Code,
+		t.tran_No
+		from 
+		users u,
+		product p,
+		transaction t
+		where t.prod_no=p.prod_No(+) and t.buyer_id = u.user_id(+) and t.cancel_code > 0
+		order by t.cancel_code
+	
+	</select>
+	
+	<select id="saleList" parameterType="map" resultMap="purchaseSelectMap" >
+		select
+		u.user_Id,
+		p.prod_name,
+		p.price,
+		p.IMAGE_FILE,
+		p.prod_no,
+		t.sea,
+		t.cancel_Code,
+		t.TRAN_STATUS_CODE,
+		t.tran_No
+		from 
+		users u,
+		product p,
+		transaction t
+		where t.prod_no=p.prod_No(+) and t.buyer_id = u.user_id(+)
+		order by t.cancel_code
+	
+	</select>
+	
+	
+</mapper>

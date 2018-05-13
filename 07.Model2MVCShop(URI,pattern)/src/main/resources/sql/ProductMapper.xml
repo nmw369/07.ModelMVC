@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ProductMapper">
+ 	
+ 	
+	<resultMap id="productSelectMap" type="product">
+		<result property="prodNo"  column="prod_no" 				jdbcType="INTEGER"/>
+	 	<result property="prodName" column="prod_Name"	 		jdbcType="VARCHAR" />
+		<result column="prod_detail" 	property="prodDetail" 		jdbcType="VARCHAR" />
+		<result column="manufacture_day" 		property="manuDate" 					jdbcType="VARCHAR" />
+		<result column="price" 				property="price" 					jdbcType="INTEGER" />
+		<result column="image_file" 			property="fileName" 		jdbcType="VARCHAR" />
+		<result column="reg_date" 				property="regDate" 					jdbcType="DATE" />
+		<result column="lookup" 			property="lookup" 				jdbcType="INTEGER"  />
+		<result column="today" 		property="today" 			jdbcType="VARCHAR" />
+		<result column="nea" 		property="nEA" 			jdbcType="INTEGER" />
+		<result column="totalea" 		property="totalEA" 			jdbcType="INTEGER" /> 
+		<result column="ea_Code"    property="eaCode" jdbcType="INTEGER"/>
+	</resultMap>
+	
+		
+	
+	
+	
+	<!-- SQL : INSERT -->
+	<insert id="addProduct"	parameterType="product" >
+	 	INSERT
+		 INTO product VALUES ( seq_product_prod_no.nextval,'${prodName}','${prodDetail}' ,'${manuDate}' ,'${price}' ,'${fileName}' , SYSDATE,'1', SYSDATE, '${totalEA}' , '${totalEA}','1' )
+												
+	 </insert>
+	 
+	 <!-- SQL : SELECT ONE -->
+	<select id="getProduct"	parameterType="int"	resultMap="productSelectMap">
+		select prod_no,prod_name,prod_detail,manufacture_day,price,image_file,reg_date,nea,ea_code,lookup,today 
+		from  product
+		where prod_no=#{value}
+		
+	 </select>
+	 
+	 <!-- SQL : UPDATE -->
+	 <update	id="updateProduct"	parameterType="product" >
+	   	UPDATE product
+	   	<set>
+	   		prod_no = #{prodNo},
+	   		prod_name= #{prodName},
+	   		prod_detail=#{prodDetail},
+	   		manufacture_day=#{manuDate},
+	   		price=#{price}
+	   		
+	   	</set>
+	   	WHERE prod_no = #{prodNo}
+	 </update>
+		 
+	<!-- SQL : SELECT LIST -->
+	
+	
+		
+	
+	 <select  id="getProductList"  parameterType="search"	resultMap="productSelectMap">
+	  	SELECT *
+	  	FROM (	SELECT inner_table.* , ROWNUM AS row_seq
+	  					FROM		(select 
+	  								prod_no,prod_name,prod_detail,manufacture_day,price,
+	  								image_file,reg_date,lookup,nea,ea_code 
+	  								from  product
+											<if test="searchCondition != null">
+													<if test="searchCondition == 0 and searchKeyword !='' ">
+										 				where PROD_NO Like '%'||#{searchKeyword}||'%'
+													</if>
+													<if test="searchCondition == 1 and searchKeyword !='' ">
+										 				where PROD_NAME LIKE '%'||#{searchKeyword}||'%'
+													</if>
+													<if test="searchCondition == 2 and searchKeyword !='' ">
+										 				where PRICE Like LIKE '%'||#{searchKeyword}||'%'
+													</if>
+											</if>
+											<if test="daySorting != null and daySorting=='highDay'">
+												order by reg_date desc nulls last
+											</if>
+											<if test="daySorting != null and daySorting=='lowDay'">
+												order by reg_date asc nulls last
+											</if>
+											<if test="sorting !=null and sorting != 'a'.toString()">
+												<if test="sorting != 'high'">
+												order by price desc nulls last
+												</if>
+												<if test="sorting != 'low'">
+												order by price asc nulls last
+												</if>
+												
+											</if>
+											
+											) inner_table
+						WHERE ROWNUM &lt;= #{endRowNum} )
+		WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum} 
+	 </select>
+	 	<!--  위 두번째 subQuery 의  
+	 			WHERE ROWNUM &lt;= #{endRowNum} ) 는
+	 			WHERE ROWNUM <= #{endRowNum} ) 의미이며..
+	 			< 는 keyword 로 &lt; 를	사용.
+	 			
+	 			<![CDATA[  ~~~  ]]> 를 이용하여 아래와 같이 사용  할 수 있다.
+	 			CDATA ==> Character Data 의 의미 Java 에서 \n 같은 특수문자 처리  
+
+				WHERE ROWNUM <![CDATA[ <=]]> #{endRowNum} )
+		-->
+	
+	<!-- SQL : SELECT ROW Count -->	 
+	<select  id="getTotalCount"  parameterType="search"	 resultType="int">
+	  	SELECT COUNT(*)
+	  	FROM(	select 
+	  								prod_no,prod_name,prod_detail,manufacture_day,price,
+	  								image_file,reg_date,lookup,nea,ea_code 
+	  								from  product
+											<if test="searchCondition != null">
+													<if test="searchCondition == 0 and searchKeyword !='' ">
+										 				where PROD_NO = Like '%'||#{searchKeyword}||'%'
+													</if>
+													<if test="searchCondition == 1 and searchKeyword !='' ">
+										 				where PROD_NAME LIKE '%'||#{searchKeyword}||'%'
+													</if>
+													<if test="searchCondition == 2 and searchKeyword !='' ">
+										 				where PRICE Like LIKE '%'||#{searchKeyword}||'%'
+													</if>
+											</if>
+											order by reg_date desc nulls last) countTable						
+	 </select>
+	 
+	 <select id="getMainList" resultMap="productSelectMap">
+	 	Select 
+	 	*
+	 	from product
+	 	order by lookup desc 
+	 </select>
+	 
+	 <!-- <update id="updateLookup"> --><!--파라미터 타입 안써도 나옴 OGNL??  -->
+	 <update id="updateLookup" parameterType="product">
+	 	Update 
+	 	product
+	 	set
+	 		lookup =lookup+1
+	 	
+	 	where
+	 		prod_no=#{prodNo}
+	 		and today=#{today}
+	 	
+	 	
+	 	
+	 </update>
+	 
+	 <insert id="insertLookup" parameterType="product">
+	 	Insert into
+	 	lookup
+	 	values(#{today},#{prodName},#{lookup})
+	 </insert>
+	 
+	 <update id="dayCheck" parameterType="product">
+	 	update product
+	 	<set>
+	 		today=#{today},
+	 		lookup='1'
+	 	</set>
+	 	<where>
+	 		prod_name=#{prodName}
+	 	</where>
+	 </update>
+	 
+	 <select id="lookupList" parameterType="string" resultMap="productSelectMap">
+	 	Select  
+	 	lookup_date as today,prod_name,lookup
+	 	From lookup
+	 	where lookup_date=#{value}
+	 	order by prod_Name desc nulls last
+	 </select>
+	 
+	 
+	 <select id="todayLookup" parameterType="string" resultMap="productSelectMap">
+	 	select prod_name , lookup , today 
+	 	FROM product 
+	 	where today=#{value}
+	 	order by prod_Name desc nulls last
+	 </select>
+	 
+	 <update id="updateEA" parameterType="map">
+	 	update product
+	 	set nea = #{nEA}
+	 	Where prod_Name=#{prodName}
+	 </update>
+	 
+	 <update id="cancelEA" parameterType="map">
+	 	update
+	 	product
+	 	set nea=#{nea}
+	 	Where prod_Name=#{prodName}
+	 </update>
+	 
+	 
+</mapper>
